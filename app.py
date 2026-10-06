@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 # --- Streamlit Page Configuration ---
 st.set_page_config(
-    page_title="SEO Auto-Fixer & Optimizer",
+    page_title="SchemaZip - Static Site SEO Optimizer",
     page_icon="🚀",
     layout="wide"
 )
@@ -47,7 +47,10 @@ def analyze_and_fix_html(file_path, root_dir, site_url, default_brand_name):
     # 1. Check Title Tag
     title_tag = soup.find('title')
     if not title_tag or not title_tag.text.strip():
-        new_title = f"{os.path.basename(clean_path).replace('-', ' ').title()} | {default_brand_name}" if 'clean_path' in locals() else default_brand_name
+        clean_path = relative_path.replace(".html", "").replace(".htm", "")
+        page_name = os.path.basename(clean_path).replace('-', ' ').replace('_', ' ').title()
+        new_title = f"{page_name} | {default_brand_name}" if page_name and page_name.lower() != "index" else default_brand_name
+        
         if not title_tag:
             title_tag = soup.new_tag('title')
             soup.head.append(title_tag)
@@ -59,7 +62,7 @@ def analyze_and_fix_html(file_path, root_dir, site_url, default_brand_name):
     # 2. Check Meta Description
     meta_desc = soup.find('meta', attrs={'name': 'description'})
     if not meta_desc or not meta_desc.get('content', '').strip():
-        default_desc = f"Explore {page_title} - Official offerings and technical solutions from {default_brand_name}."
+        default_desc = f"Explore {page_title} - Official offerings and solutions from {default_brand_name}."
         if not meta_desc:
             meta_desc = soup.new_tag('meta', attrs={'name': 'description', 'content': default_desc})
             soup.head.append(meta_desc)
@@ -140,88 +143,103 @@ def analyze_and_fix_html(file_path, root_dir, site_url, default_brand_name):
     }
 
 # --- Streamlit User Interface ---
-st.title("🚀 Static Site SEO Optimizer & Schema Injector")
-st.write("Upload a `.zip` archive of your website to automatically inspect, fix, and embed search engine optimizations.")
+st.title("🚀 SchemaZip - Static Site SEO Optimizer & Schema Injector")
+st.write("Upload a `.zip` archive of any static website to automatically inspect, fix, and embed search engine optimizations.")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    site_url = st.text_input("Production Web URL", "https://barcodestripe.com")
+    site_url = st.text_input(
+        "Production Web URL", 
+        value="", 
+        placeholder="https://example.com"
+    )
 
 with col2:
-    brand_name = st.text_input("Brand / Business Name", "Barcode Stripe")
+    brand_name = st.text_input(
+        "Brand / Business Name", 
+        value="", 
+        placeholder="My Business Name"
+    )
 
 uploaded_zip = st.file_uploader("Upload Website ZIP File", type=["zip"])
 
-if uploaded_zip and site_url and brand_name:
+if uploaded_zip:
     if st.button("Run SEO Audit & Apply Fixes", type="primary"):
-        with st.spinner("Extracting, analyzing, and applying SEO fixes..."):
-            
-            # Temporary directory setup
-            with tempfile.TemporaryDirectory() as extract_dir, tempfile.TemporaryDirectory() as output_dir:
+        # Validate input fields
+        if not site_url.strip() or not brand_name.strip():
+            st.error("Please enter both a Production Web URL and a Brand/Business Name before running the audit.")
+        else:
+            with st.spinner("Extracting, analyzing, and applying SEO fixes..."):
                 
-                # Extract original zip file
-                zip_path = os.path.join(extract_dir, "uploaded.zip")
-                with open(zip_path, "wb") as f:
-                    f.write(uploaded_zip.getbuffer())
-
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(extract_dir)
-
-                # Find all HTML files
-                report_data = []
-                html_count = 0
-                
-                for root, dirs, files in os.walk(extract_dir):
-                    # Ignore hidden technical folders
-                    if any(part.startswith('.') for part in root.split(os.sep)):
-                        continue
+                # Temporary directory setup
+                with tempfile.TemporaryDirectory() as extract_dir, tempfile.TemporaryDirectory() as output_dir:
                     
-                    for file in files:
-                        if file.endswith((".html", ".htm")):
-                            html_count += 1
-                            file_path = os.path.join(root, file)
-                            result = analyze_and_fix_html(file_path, extract_dir, site_url, brand_name)
-                            report_data.append(result)
+                    # Extract original zip file
+                    zip_path = os.path.join(extract_dir, "uploaded.zip")
+                    with open(zip_path, "wb") as f:
+                        f.write(uploaded_zip.getbuffer())
 
-                # Re-zip fixed site directory into memory buffer
-                output_zip_path = os.path.join(output_dir, "optimized_website.zip")
-                with zipfile.ZipFile(output_zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_out:
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        zip_ref.extractall(extract_dir)
+
+                    # Find all HTML files
+                    report_data = []
+                    html_count = 0
+                    
                     for root, dirs, files in os.walk(extract_dir):
-                        if any(part.startswith('.') for part in root.split(os.sep)) or "uploaded.zip" in files:
+                        # Ignore hidden technical folders (.git, __MACOSX, etc.)
+                        if any(part.startswith('.') or part.startswith('__') for part in root.split(os.sep)):
                             continue
+                        
                         for file in files:
-                            if file == "uploaded.zip":
+                            if file.endswith((".html", ".htm")):
+                                html_count += 1
+                                file_path = os.path.join(root, file)
+                                result = analyze_and_fix_html(file_path, extract_dir, site_url, brand_name)
+                                report_data.append(result)
+
+                    # Re-zip fixed site directory into memory buffer
+                    output_zip_path = os.path.join(output_dir, "optimized_website.zip")
+                    with zipfile.ZipFile(output_zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_out:
+                        for root, dirs, files in os.walk(extract_dir):
+                            if any(part.startswith('.') or part.startswith('__') for part in root.split(os.sep)):
                                 continue
-                            full_path = os.path.join(root, file)
-                            rel_path = os.path.relpath(full_path, start=extract_dir)
-                            zip_out.write(full_path, arcname=rel_path)
+                            for file in files:
+                                if file == "uploaded.zip":
+                                    continue
+                                full_path = os.path.join(root, file)
+                                rel_path = os.path.relpath(full_path, start=extract_dir)
+                                zip_out.write(full_path, arcname=rel_path)
 
-                # Read ZIP bytes for download
-                with open(output_zip_path, "rb") as f:
-                    zipped_bytes = f.read()
+                    # Read ZIP bytes for download
+                    with open(output_zip_path, "rb") as f:
+                        zipped_bytes = f.read()
 
-                # --- Render Report and Results ---
-                st.success(f"Audit Complete! Analyzed {html_count} HTML pages.")
-                
-                df = pd.DataFrame(report_data)
-                
-                # Summary Stats Metrics
-                m1, m2, m3 = st.columns(3)
-                m1.metric("Total HTML Pages", len(df))
-                m2.metric("Pages Modified", len(df[df["Fixes Count"] > 0]))
-                m3.metric("Fully Compliant", len(df[df["Fixes Count"] == 0]))
+                    # --- Render Report and Results ---
+                    if html_count == 0:
+                        st.warning("No HTML files were found in the uploaded archive.")
+                    else:
+                        st.success(f"Audit Complete! Analyzed {html_count} HTML pages.")
+                        
+                        df = pd.DataFrame(report_data)
+                        
+                        # Summary Stats Metrics
+                        m1, m2, m3 = st.columns(3)
+                        m1.metric("Total HTML Pages", len(df))
+                        m2.metric("Pages Modified", len(df[df["Fixes Count"] > 0]))
+                        m3.metric("Fully Compliant", len(df[df["Fixes Count"] == 0]))
 
-                # Detailed Report Table
-                st.subheader("📊 Detailed Optimization Report")
-                st.dataframe(df, use_container_width=True)
+                        # Detailed Report Table
+                        st.subheader("📊 Detailed Optimization Report")
+                        st.dataframe(df, use_container_width=True)
 
-                # Download Widget
-                st.markdown("### 📥 Download Fixed Website")
-                st.download_button(
-                    label="Download Optimized Website (.zip)",
-                    data=zipped_bytes,
-                    file_name="optimized_website.zip",
-                    mime="application/zip",
-                    type="primary"
-                )
+                        # Download Widget
+                        st.markdown("### 📥 Download Fixed Website")
+                        st.download_button(
+                            label="Download Optimized Website (.zip)",
+                            data=zipped_bytes,
+                            file_name="optimized_website.zip",
+                            mime="application/zip",
+                            type="primary"
+                        )
