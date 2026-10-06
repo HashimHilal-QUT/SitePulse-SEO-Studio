@@ -232,7 +232,7 @@ if uploaded_zip:
 
                         # Detailed Report Table
                         st.subheader("📊 Detailed Optimization Report")
-                        st.dataframe(df, use_container_width=True)
+                        st.dataframe(df, width="stretch")
 
                         # Download Widget
                         st.markdown("### 📥 Download Fixed Website")
