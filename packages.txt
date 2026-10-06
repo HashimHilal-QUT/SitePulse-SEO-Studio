@@ -1,0 +1,4 @@
+# No system-level apt packages required.
+# If you ever switch BeautifulSoup to use 'lxml' or 'xml' parsers, uncomment:
+# libxml2-dev
+# libxslt1-dev
