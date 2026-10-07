@@ -145,7 +145,7 @@ def analyze_and_fix_html(file_path, root_dir, site_url, default_brand_name):
 
 
 # --- Streamlit User Interface ---
-st.title("🚀 SchemaZip - Static Site SEO Optimizer & Schema Injector")
+st.title("🚀 SitePulse SEO Studio - Static Site SEO Optimizer & Schema Injector")
 st.write("Upload a `.zip` archive of a static website or a single `.html` page to automatically inspect, fix, and embed search engine optimizations.")
 
 col1, col2 = st.columns(2)
